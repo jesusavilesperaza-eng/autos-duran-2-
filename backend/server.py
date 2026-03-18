@@ -1,6 +1,7 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -13,6 +14,7 @@ from datetime import datetime, timezone
 import bcrypt
 import jwt
 import resend
+import base64
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -376,6 +378,63 @@ async def delete_vehicle(vehicle_id: str, admin_id: str = Depends(get_current_ad
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
     return {"message": "Vehículo eliminado"}
+
+# ============== IMAGE UPLOAD ==============
+
+@api_router.post("/upload-image")
+async def upload_image(file: UploadFile = File(...), admin_id: str = Depends(get_current_admin)):
+    """Upload an image and return a URL to access it"""
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/jpg"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido. Use JPG, PNG o WebP")
+    
+    # Read file content
+    content = await file.read()
+    
+    # Check file size (max 5MB)
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen es muy grande. Máximo 5MB")
+    
+    # Generate unique ID for the image
+    image_id = str(uuid.uuid4())
+    
+    # Store in MongoDB
+    image_doc = {
+        "id": image_id,
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "data": base64.b64encode(content).decode('utf-8'),
+        "size": len(content),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.images.insert_one(image_doc)
+    
+    # Return the URL to access the image
+    return {
+        "image_id": image_id,
+        "filename": file.filename,
+        "url": f"/api/images/{image_id}"
+    }
+
+@api_router.get("/images/{image_id}")
+async def get_image(image_id: str):
+    """Retrieve an uploaded image"""
+    image = await db.images.find_one({"id": image_id}, {"_id": 0})
+    if not image:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    
+    # Decode base64 data
+    image_data = base64.b64decode(image["data"])
+    
+    return Response(
+        content=image_data,
+        media_type=image["content_type"],
+        headers={
+            "Cache-Control": "public, max-age=31536000",
+            "Content-Disposition": f"inline; filename={image['filename']}"
+        }
+    )
 
 # ============== FINANCING CALCULATOR ==============
 

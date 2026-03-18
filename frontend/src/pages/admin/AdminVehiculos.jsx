@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Loader2, Search, Car, CheckCircle, XCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Pencil, Trash2, Loader2, Search, Car, CheckCircle, XCircle, Upload, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,8 +34,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getVehicles, createVehicle, updateVehicle, deleteVehicle, formatCurrency } from '@/lib/api';
+import { getVehicles, createVehicle, updateVehicle, deleteVehicle, uploadImage, formatCurrency } from '@/lib/api';
 import { toast } from 'sonner';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 const emptyVehicle = {
   pin: '',
@@ -64,6 +66,9 @@ export default function AdminVehiculos() {
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [vehicleToDelete, setVehicleToDelete] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadVehicles();
@@ -106,6 +111,7 @@ export default function AdminVehiculos() {
   const openCreateDialog = () => {
     setEditingVehicle(null);
     setFormData(emptyVehicle);
+    setPreviewImage(null);
     setDialogOpen(true);
   };
 
@@ -127,7 +133,40 @@ export default function AdminVehiculos() {
       pago_mensual: vehicle.pago_mensual,
       imagen_url: vehicle.imagen_url || '',
     });
+    setPreviewImage(vehicle.imagen_url || null);
     setDialogOpen(true);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Solo se permiten imágenes JPG, PNG o WebP');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen es muy grande. Máximo 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const result = await uploadImage(file);
+      const imageUrl = `${BACKEND_URL}${result.url}`;
+      setFormData(prev => ({ ...prev, imagen_url: imageUrl }));
+      setPreviewImage(imageUrl);
+      toast.success('Imagen subida correctamente');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Error al subir la imagen');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -491,16 +530,77 @@ export default function AdminVehiculos() {
                   onChange={handleInputChange}
                 />
               </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="imagen_url">URL de Imagen</Label>
-                <Input
-                  id="imagen_url"
-                  name="imagen_url"
-                  type="url"
-                  value={formData.imagen_url}
-                  onChange={handleInputChange}
-                  placeholder="https://..."
-                />
+              
+              {/* Image Upload Section */}
+              <div className="md:col-span-3 border-t pt-4 mt-2">
+                <Label className="mb-3 block">Imagen del Vehículo</Label>
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Preview */}
+                  <div className="w-full md:w-48 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed border-border">
+                    {previewImage ? (
+                      <img 
+                        src={previewImage} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        <ImageIcon className="h-8 w-8 mx-auto mb-1" />
+                        <span className="text-xs">Sin imagen</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Upload Controls */}
+                  <div className="flex-1 space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="flex-1"
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Subiendo...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Subir Foto
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground">
+                      O pega un link de imagen:
+                    </div>
+                    <Input
+                      id="imagen_url"
+                      name="imagen_url"
+                      type="url"
+                      value={formData.imagen_url}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        setPreviewImage(e.target.value);
+                      }}
+                      placeholder="https://..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Formatos: JPG, PNG, WebP. Máximo 5MB.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             <DialogFooter>

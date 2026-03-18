@@ -65,6 +65,19 @@ export const deleteVehicle = async (id) => {
   return response.data;
 };
 
+// Image Upload
+export const uploadImage = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post('/upload-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 // Financing Calculator
 export const calculateFinancing = async (data) => {
   const response = await api.post('/calculate-financing', data);
