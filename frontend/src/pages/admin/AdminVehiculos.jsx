@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Loader2, Search, Car } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Search, Car, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getVehicles, createVehicle, updateVehicle, deleteVehicle, formatCurrency } from '@/lib/api';
@@ -159,6 +166,39 @@ export default function AdminVehiculos() {
     }
   };
 
+  const handleMarkAsSold = async (vehicle) => {
+    try {
+      await updateVehicle(vehicle.id, { disponible: false, reservado: false });
+      toast.success(`${vehicle.marca} ${vehicle.modelo} marcado como VENDIDO`);
+      loadVehicles();
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      toast.error('Error al actualizar');
+    }
+  };
+
+  const handleMarkAsAvailable = async (vehicle) => {
+    try {
+      await updateVehicle(vehicle.id, { disponible: true, reservado: false });
+      toast.success(`${vehicle.marca} ${vehicle.modelo} marcado como DISPONIBLE`);
+      loadVehicles();
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      toast.error('Error al actualizar');
+    }
+  };
+
+  const handleUnreserve = async (vehicle) => {
+    try {
+      await updateVehicle(vehicle.id, { reservado: false });
+      toast.success(`Apartado cancelado para ${vehicle.marca} ${vehicle.modelo}`);
+      loadVehicles();
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      toast.error('Error al actualizar');
+    }
+  };
+
   const getStatusBadge = (vehicle) => {
     if (vehicle.reservado) {
       return <Badge className="bg-yellow-100 text-yellow-800">Apartado</Badge>;
@@ -250,25 +290,49 @@ export default function AdminVehiculos() {
                     <TableCell>{formatCurrency(vehicle.anticipo_minimo)}</TableCell>
                     <TableCell>{getStatusBadge(vehicle)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(vehicle)}
-                        data-testid={`edit-${vehicle.id}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setVehicleToDelete(vehicle);
-                          setDeleteDialogOpen(true);
-                        }}
-                        data-testid={`delete-${vehicle.id}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid={`actions-${vehicle.id}`}>
+                            Acciones
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(vehicle)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {vehicle.disponible && !vehicle.reservado && (
+                            <DropdownMenuItem onClick={() => handleMarkAsSold(vehicle)}>
+                              <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                              Marcar como Vendido
+                            </DropdownMenuItem>
+                          )}
+                          {!vehicle.disponible && (
+                            <DropdownMenuItem onClick={() => handleMarkAsAvailable(vehicle)}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                              Marcar como Disponible
+                            </DropdownMenuItem>
+                          )}
+                          {vehicle.reservado && (
+                            <DropdownMenuItem onClick={() => handleUnreserve(vehicle)}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-yellow-500" />
+                              Cancelar Apartado
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setVehicleToDelete(vehicle);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Fuel, Settings, MapPin } from 'lucide-react';
+import { Calendar, Fuel, Settings, MapPin, MessageCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/api';
+
+const WHATSAPP_NUMBER = "9991524005";
 
 export default function VehicleCard({ vehicle }) {
   const {
@@ -85,16 +87,32 @@ export default function VehicleCard({ vehicle }) {
           </p>
         </div>
 
-        {/* CTA */}
-        <Link to={`/vehiculo/${id}`}>
-          <Button 
-            className="w-full btn-primary" 
-            data-testid={`ver-detalles-${id}`}
-            disabled={!disponible && !reservado}
+        {/* CTAs */}
+        <div className="flex gap-2">
+          <Link to={`/vehiculo/${id}`} className="flex-1">
+            <Button 
+              className="w-full btn-primary" 
+              data-testid={`ver-detalles-${id}`}
+              disabled={!disponible && !reservado}
+            >
+              Ver Detalles
+            </Button>
+          </Link>
+          <a
+            href={`https://wa.me/52${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, me interesa el ${year} ${marca} ${modelo} a ${formatCurrency(precio_facebook)}. ¿Está disponible?`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid={`whatsapp-${id}`}
           >
-            Ver Detalles
-          </Button>
-        </Link>
+            <Button 
+              variant="outline" 
+              size="icon"
+              className="h-12 w-12 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+            >
+              <MessageCircle className="h-5 w-5" />
+            </Button>
+          </a>
+        </div>
       </div>
     </div>
   );
