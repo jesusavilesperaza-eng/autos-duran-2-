@@ -66,6 +66,7 @@ class Vehicle(BaseModel):
     monto_financiar: float
     pago_mensual: float
     imagen_url: Optional[str] = None
+    imagenes: List[str] = []  # Gallery of images
     disponible: bool = True
     reservado: bool = False
     reservado_hasta: Optional[str] = None
@@ -86,6 +87,7 @@ class VehicleCreate(BaseModel):
     monto_financiar: float
     pago_mensual: float
     imagen_url: Optional[str] = None
+    imagenes: List[str] = []
 
 class VehicleUpdate(BaseModel):
     pin: Optional[str] = None
@@ -102,6 +104,7 @@ class VehicleUpdate(BaseModel):
     monto_financiar: Optional[float] = None
     pago_mensual: Optional[float] = None
     imagen_url: Optional[str] = None
+    imagenes: Optional[List[str]] = None
     disponible: Optional[bool] = None
     reservado: Optional[bool] = None
 
@@ -440,7 +443,7 @@ async def get_image(image_id: str):
 
 @api_router.post("/calculate-financing")
 async def calculate_financing(calc: FinancingCalculation):
-    """Calculate monthly payments with 1.4% monthly interest"""
+    """Calculate monthly payments with 1.4% monthly interest and advance payments"""
     MONTHLY_INTEREST = 0.014  # 1.4% mensual
     
     monto_financiar = calc.precio_vehiculo - calc.anticipo
@@ -450,20 +453,49 @@ async def calculate_financing(calc: FinancingCalculation):
             "monto_financiar": 0,
             "pago_mensual": 0,
             "total_a_pagar": calc.anticipo,
-            "interes_total": 0
+            "interes_total": 0,
+            "tasa_mensual": MONTHLY_INTEREST * 100,
+            "letras_adelantadas": []
         }
     
-    # Simple interest calculation (monto + interés mensual * plazo)
+    # Calculate monthly payment with simple interest
     interes_total = monto_financiar * MONTHLY_INTEREST * calc.plazo_meses
     total_a_pagar = monto_financiar + interes_total
     pago_mensual = total_a_pagar / calc.plazo_meses
+    
+    # Calculate advance payment options (letras adelantadas)
+    # These show how much to pay upfront to reduce one monthly payment
+    letras_adelantadas = []
+    for num_letras in [1, 2, 3, 4, 5]:
+        # Capital portion of advance payment (without future interest)
+        capital_por_letra = monto_financiar / calc.plazo_meses
+        capital_adelantado = capital_por_letra * num_letras
+        
+        # New financing after advance
+        nuevo_monto = monto_financiar - capital_adelantado
+        nuevo_plazo = calc.plazo_meses - num_letras
+        
+        if nuevo_plazo > 0 and nuevo_monto > 0:
+            nuevo_interes = nuevo_monto * MONTHLY_INTEREST * nuevo_plazo
+            nuevo_total = nuevo_monto + nuevo_interes
+            nueva_mensualidad = nuevo_total / nuevo_plazo
+            
+            letras_adelantadas.append({
+                "num_letras": num_letras,
+                "capital_adelantado": round(capital_adelantado, 2),
+                "nuevo_plazo": nuevo_plazo,
+                "nueva_mensualidad": round(nueva_mensualidad, 2),
+                "ahorro_intereses": round(interes_total - nuevo_interes, 2)
+            })
     
     return {
         "monto_financiar": round(monto_financiar, 2),
         "pago_mensual": round(pago_mensual, 2),
         "total_a_pagar": round(total_a_pagar + calc.anticipo, 2),
         "interes_total": round(interes_total, 2),
-        "tasa_mensual": MONTHLY_INTEREST * 100
+        "tasa_mensual": MONTHLY_INTEREST * 100,
+        "capital_por_letra": round(monto_financiar / calc.plazo_meses, 2),
+        "letras_adelantadas": letras_adelantadas
     }
 
 # ============== CREDIT APPLICATION ROUTES ==============

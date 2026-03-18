@@ -10,7 +10,9 @@ import {
   Phone,
   CreditCard,
   ShieldCheck,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +29,7 @@ export default function VehiculoDetalle() {
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     loadVehicle();
@@ -54,6 +57,18 @@ export default function VehiculoDetalle() {
 
   if (!vehicle) return null;
 
+  // Build gallery from imagen_url and imagenes array
+  const allImages = [];
+  if (vehicle.imagen_url) allImages.push(vehicle.imagen_url);
+  if (vehicle.imagenes && vehicle.imagenes.length > 0) {
+    vehicle.imagenes.forEach(img => {
+      if (img && !allImages.includes(img)) allImages.push(img);
+    });
+  }
+  if (allImages.length === 0) {
+    allImages.push('https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800');
+  }
+
   const getStatusBadge = () => {
     if (vehicle.reservado) {
       return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-sm">Apartado</Badge>;
@@ -64,7 +79,15 @@ export default function VehiculoDetalle() {
     return <Badge className="bg-green-100 text-green-800 border-green-200 text-sm">Disponible</Badge>;
   };
 
-  const whatsappMessage = `Hola, me interesa el ${vehicle.year} ${vehicle.marca} ${vehicle.modelo}. ¿Podrían darme más información?`;
+  const whatsappMessage = `Hola, me interesa el ${vehicle.year} ${vehicle.marca} ${vehicle.modelo} a ${formatCurrency(vehicle.precio_facebook)}. ¿Podrían darme más información?`;
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  };
 
   return (
     <div className="section-padding" data-testid="vehiculo-detalle-page">
@@ -80,18 +103,63 @@ export default function VehiculoDetalle() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Image Section */}
+          {/* Image Section with Gallery */}
           <div>
+            {/* Main Image */}
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-muted">
               <img
-                src={vehicle.imagen_url || 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800'}
+                src={allImages[currentImageIndex]}
                 alt={`${vehicle.marca} ${vehicle.modelo}`}
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-4 left-4">
                 {getStatusBadge()}
               </div>
+              
+              {/* Gallery Navigation */}
+              {allImages.length > 1 && (
+                <>
+                  <button
+                    onClick={prevImage}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-lg transition-colors"
+                    data-testid="prev-image"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={nextImage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-lg transition-colors"
+                    data-testid="next-image"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                    {currentImageIndex + 1} / {allImages.length}
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Thumbnails */}
+            {allImages.length > 1 && (
+              <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+                {allImages.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                      index === currentImageIndex ? 'border-primary' : 'border-transparent'
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Quick Specs */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
@@ -176,7 +244,7 @@ export default function VehiculoDetalle() {
                 rel="noopener noreferrer"
                 className="flex-1"
               >
-                <Button variant="outline" className="w-full h-12" data-testid="btn-whatsapp">
+                <Button variant="outline" className="w-full h-12 border-green-500 text-green-600 hover:bg-green-50" data-testid="btn-whatsapp">
                   <Phone className="mr-2 h-5 w-5" />
                   WhatsApp
                 </Button>
@@ -211,6 +279,7 @@ export default function VehiculoDetalle() {
                 <FinancingCalculator
                   vehiclePrice={vehicle.precio_facebook}
                   minDownPayment={vehicle.anticipo_minimo}
+                  vehicleName={`${vehicle.year} ${vehicle.marca} ${vehicle.modelo}`}
                 />
               </TabsContent>
               

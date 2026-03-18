@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Pencil, Trash2, Loader2, Search, Car, CheckCircle, XCircle, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Search, Car, CheckCircle, XCircle, Upload, Image as ImageIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,6 +54,7 @@ const emptyVehicle = {
   monto_financiar: 0,
   pago_mensual: 0,
   imagen_url: '',
+  imagenes: [],
 };
 
 export default function AdminVehiculos() {
@@ -67,7 +68,7 @@ export default function AdminVehiculos() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [vehicleToDelete, setVehicleToDelete] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [allImages, setAllImages] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -111,12 +112,23 @@ export default function AdminVehiculos() {
   const openCreateDialog = () => {
     setEditingVehicle(null);
     setFormData(emptyVehicle);
-    setPreviewImage(null);
+    setAllImages([]);
     setDialogOpen(true);
   };
 
   const openEditDialog = (vehicle) => {
     setEditingVehicle(vehicle);
+    
+    // Collect all images
+    const images = [];
+    if (vehicle.imagen_url) images.push(vehicle.imagen_url);
+    if (vehicle.imagenes && vehicle.imagenes.length > 0) {
+      vehicle.imagenes.forEach(img => {
+        if (img && !images.includes(img)) images.push(img);
+      });
+    }
+    setAllImages(images);
+    
     setFormData({
       pin: vehicle.pin,
       marca: vehicle.marca,
@@ -132,41 +144,82 @@ export default function AdminVehiculos() {
       monto_financiar: vehicle.monto_financiar,
       pago_mensual: vehicle.pago_mensual,
       imagen_url: vehicle.imagen_url || '',
+      imagenes: vehicle.imagenes || [],
     });
-    setPreviewImage(vehicle.imagen_url || null);
     setDialogOpen(true);
   };
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Solo se permiten imágenes JPG, PNG o WebP');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen es muy grande. Máximo 5MB');
-      return;
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setUploading(true);
-    try {
-      const result = await uploadImage(file);
-      const imageUrl = `${BACKEND_URL}${result.url}`;
-      setFormData(prev => ({ ...prev, imagen_url: imageUrl }));
-      setPreviewImage(imageUrl);
-      toast.success('Imagen subida correctamente');
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Error al subir la imagen');
-    } finally {
-      setUploading(false);
+    const newImages = [...allImages];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name}: Solo se permiten imágenes JPG, PNG o WebP`);
+        continue;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name}: La imagen es muy grande. Máximo 5MB`);
+        continue;
+      }
+
+      try {
+        const result = await uploadImage(file);
+        const imageUrl = `${BACKEND_URL}${result.url}`;
+        newImages.push(imageUrl);
+        toast.success(`${file.name} subida correctamente`);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        toast.error(`Error al subir ${file.name}`);
+      }
     }
+
+    setAllImages(newImages);
+    
+    // Update form data
+    if (newImages.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        imagen_url: newImages[0],
+        imagenes: newImages.slice(1),
+      }));
+    }
+    
+    setUploading(false);
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeImage = (index) => {
+    const newImages = allImages.filter((_, i) => i !== index);
+    setAllImages(newImages);
+    setFormData(prev => ({
+      ...prev,
+      imagen_url: newImages[0] || '',
+      imagenes: newImages.slice(1),
+    }));
+  };
+
+  const setMainImage = (index) => {
+    const newImages = [...allImages];
+    const [selected] = newImages.splice(index, 1);
+    newImages.unshift(selected);
+    setAllImages(newImages);
+    setFormData(prev => ({
+      ...prev,
+      imagen_url: newImages[0],
+      imagenes: newImages.slice(1),
+    }));
+    toast.success('Imagen principal actualizada');
   };
 
   const handleSubmit = async (e) => {
@@ -174,11 +227,17 @@ export default function AdminVehiculos() {
     setSaving(true);
 
     try {
+      const dataToSave = {
+        ...formData,
+        imagen_url: allImages[0] || '',
+        imagenes: allImages.slice(1),
+      };
+
       if (editingVehicle) {
-        await updateVehicle(editingVehicle.id, formData);
+        await updateVehicle(editingVehicle.id, dataToSave);
         toast.success('Vehículo actualizado');
       } else {
-        await createVehicle(formData);
+        await createVehicle(dataToSave);
         toast.success('Vehículo creado');
       }
       setDialogOpen(false);
@@ -383,7 +442,7 @@ export default function AdminVehiculos() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingVehicle ? 'Editar Vehículo' : 'Agregar Vehículo'}
@@ -531,76 +590,95 @@ export default function AdminVehiculos() {
                 />
               </div>
               
-              {/* Image Upload Section */}
+              {/* Gallery Upload Section */}
               <div className="md:col-span-3 border-t pt-4 mt-2">
-                <Label className="mb-3 block">Imagen del Vehículo</Label>
-                <div className="flex flex-col md:flex-row gap-4">
-                  {/* Preview */}
-                  <div className="w-full md:w-48 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed border-border">
-                    {previewImage ? (
-                      <img 
-                        src={previewImage} 
-                        alt="Preview" 
-                        className="w-full h-full object-cover"
-                      />
+                <Label className="mb-3 block font-bold">Galería de Imágenes</Label>
+                
+                {/* Upload Button */}
+                <div className="mb-4">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full md:w-auto"
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Subiendo...
+                      </>
                     ) : (
-                      <div className="text-center text-muted-foreground">
-                        <ImageIcon className="h-8 w-8 mx-auto mb-1" />
-                        <span className="text-xs">Sin imagen</span>
-                      </div>
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Subir Fotos (múltiples)
+                      </>
                     )}
-                  </div>
-                  
-                  {/* Upload Controls */}
-                  <div className="flex-1 space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImageUpload}
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="flex-1"
-                      >
-                        {uploading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Subiendo...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Subir Foto
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground">
-                      O pega un link de imagen:
-                    </div>
-                    <Input
-                      id="imagen_url"
-                      name="imagen_url"
-                      type="url"
-                      value={formData.imagen_url}
-                      onChange={(e) => {
-                        handleInputChange(e);
-                        setPreviewImage(e.target.value);
-                      }}
-                      placeholder="https://..."
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Formatos: JPG, PNG, WebP. Máximo 5MB.
-                    </p>
-                  </div>
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Formatos: JPG, PNG, WebP. Máximo 5MB por imagen. Puedes seleccionar varias fotos a la vez.
+                  </p>
                 </div>
+
+                {/* Image Gallery */}
+                {allImages.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {allImages.map((img, index) => (
+                      <div 
+                        key={index}
+                        className={`relative group aspect-video rounded-lg overflow-hidden border-2 ${
+                          index === 0 ? 'border-primary' : 'border-transparent'
+                        }`}
+                      >
+                        <img 
+                          src={img} 
+                          alt={`Foto ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {index === 0 && (
+                          <div className="absolute top-1 left-1 bg-primary text-white text-xs px-2 py-0.5 rounded">
+                            Principal
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          {index !== 0 && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setMainImage(index)}
+                              className="text-xs"
+                            >
+                              Principal
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">No hay imágenes</p>
+                    <p className="text-sm text-muted-foreground">Sube fotos del vehículo</p>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
