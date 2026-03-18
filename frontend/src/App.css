@@ -1,34 +1,100 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* App-specific styles */
+.App {
+  min-height: 100vh;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+/* Hero section background overlay */
+.hero-overlay {
+  background: linear-gradient(to right, rgba(0,0,0,0.7), rgba(0,0,0,0.3));
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Vehicle card image zoom effect */
+.vehicle-image-container {
+  overflow: hidden;
 }
 
-.App-link {
-    color: #61dafb;
+.vehicle-image-container img {
+  transition: transform 0.5s ease;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.group:hover .vehicle-image-container img {
+  transform: scale(1.05);
+}
+
+/* Calculator slider custom styles */
+.slider-track {
+  background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary)));
+}
+
+/* Form animations */
+.form-step-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.form-step-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 0.3s ease;
+}
+
+.form-step-exit {
+  opacity: 1;
+}
+
+.form-step-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: all 0.3s ease;
+}
+
+/* Loading spinner */
+.loader {
+  border: 3px solid hsl(var(--muted));
+  border-top: 3px solid hsl(var(--primary));
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Badge styles */
+.badge-disponible {
+  @apply bg-green-100 text-green-800;
+}
+
+.badge-apartado {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.badge-vendido {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Price tag style */
+.price-tag {
+  @apply text-2xl font-black text-primary;
+}
+
+/* WhatsApp button animation */
+.whatsapp-float {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }

@@ -1,52 +1,49 @@
-import { useEffect } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import { Toaster } from "@/components/ui/sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Pages
+import Home from "@/pages/Home";
+import Catalogo from "@/pages/Catalogo";
+import VehiculoDetalle from "@/pages/VehiculoDetalle";
+import SolicitudCredito from "@/pages/SolicitudCredito";
+import PagoExitoso from "@/pages/PagoExitoso";
+import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminVehiculos from "@/pages/admin/AdminVehiculos";
+import AdminSolicitudes from "@/pages/admin/AdminSolicitudes";
+import AdminReservaciones from "@/pages/admin/AdminReservaciones";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+// Layout
+import Layout from "@/components/Layout";
+import AdminLayout from "@/components/AdminLayout";
 
 function App() {
   return (
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
+          {/* Public Routes */}
+          <Route element={<Layout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/catalogo" element={<Catalogo />} />
+            <Route path="/vehiculo/:id" element={<VehiculoDetalle />} />
+            <Route path="/solicitud-credito" element={<SolicitudCredito />} />
+            <Route path="/solicitud-credito/:vehicleId" element={<SolicitudCredito />} />
+            <Route path="/pago-exitoso" element={<PagoExitoso />} />
+          </Route>
+          
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/vehiculos" element={<AdminVehiculos />} />
+            <Route path="/admin/solicitudes" element={<AdminSolicitudes />} />
+            <Route path="/admin/reservaciones" element={<AdminReservaciones />} />
           </Route>
         </Routes>
       </BrowserRouter>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
