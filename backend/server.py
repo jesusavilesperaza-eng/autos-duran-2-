@@ -443,7 +443,7 @@ async def get_image(image_id: str):
 
 @api_router.post("/calculate-financing")
 async def calculate_financing(calc: FinancingCalculation):
-    """Calculate monthly payments with 1.4% monthly interest and advance payments"""
+    """Calculate monthly payments with 1.4% monthly interest - fixed payment, variable term"""
     MONTHLY_INTEREST = 0.014  # 1.4% mensual
     
     monto_financiar = calc.precio_vehiculo - calc.anticipo
@@ -463,29 +463,28 @@ async def calculate_financing(calc: FinancingCalculation):
     total_a_pagar = monto_financiar + interes_total
     pago_mensual = total_a_pagar / calc.plazo_meses
     
+    # Capital portion per payment
+    capital_por_letra = monto_financiar / calc.plazo_meses
+    
     # Calculate advance payment options (letras adelantadas)
-    # These show how much to pay upfront to reduce one monthly payment
+    # The monthly payment stays FIXED, only the term is reduced
     letras_adelantadas = []
-    for num_letras in [1, 2, 3, 4, 5]:
-        # Capital portion of advance payment (without future interest)
-        capital_por_letra = monto_financiar / calc.plazo_meses
-        capital_adelantado = capital_por_letra * num_letras
-        
-        # New financing after advance
-        nuevo_monto = monto_financiar - capital_adelantado
+    for num_letras in [1, 2, 3, 4, 5, 6]:
         nuevo_plazo = calc.plazo_meses - num_letras
         
-        if nuevo_plazo > 0 and nuevo_monto > 0:
-            nuevo_interes = nuevo_monto * MONTHLY_INTEREST * nuevo_plazo
-            nuevo_total = nuevo_monto + nuevo_interes
-            nueva_mensualidad = nuevo_total / nuevo_plazo
+        if nuevo_plazo >= 12:  # Minimum 12 months
+            # Amount to pay upfront = monthly payment * number of advance letters
+            pago_adelantado = pago_mensual * num_letras
+            
+            # Interest saved (the interest that would have been paid in those months)
+            ahorro_intereses = (monto_financiar * MONTHLY_INTEREST) * num_letras
             
             letras_adelantadas.append({
                 "num_letras": num_letras,
-                "capital_adelantado": round(capital_adelantado, 2),
+                "pago_adelantado": round(pago_adelantado, 2),
                 "nuevo_plazo": nuevo_plazo,
-                "nueva_mensualidad": round(nueva_mensualidad, 2),
-                "ahorro_intereses": round(interes_total - nuevo_interes, 2)
+                "mensualidad": round(pago_mensual, 2),  # Stays the same
+                "ahorro_intereses": round(ahorro_intereses, 2)
             })
     
     return {
@@ -494,7 +493,7 @@ async def calculate_financing(calc: FinancingCalculation):
         "total_a_pagar": round(total_a_pagar + calc.anticipo, 2),
         "interes_total": round(interes_total, 2),
         "tasa_mensual": MONTHLY_INTEREST * 100,
-        "capital_por_letra": round(monto_financiar / calc.plazo_meses, 2),
+        "capital_por_letra": round(capital_por_letra, 2),
         "letras_adelantadas": letras_adelantadas
     }
 

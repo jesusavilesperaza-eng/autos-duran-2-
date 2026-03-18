@@ -146,8 +146,8 @@ export default function FinancingCalculator({
       {/* Plazo Selector */}
       <div className="mb-6">
         <Label className="font-medium mb-3 block">Plazo (meses)</Label>
-        <div className="grid grid-cols-4 gap-2">
-          {[6, 12, 18, 24].map((months) => (
+        <div className="grid grid-cols-5 gap-2">
+          {[12, 18, 24, 36, 48].map((months) => (
             <Button
               key={months}
               variant={plazo === months ? 'default' : 'outline'}
@@ -226,7 +226,7 @@ export default function FinancingCalculator({
             <Collapsible open={showLetrasAdelantadas} onOpenChange={setShowLetrasAdelantadas}>
               <CollapsibleTrigger asChild>
                 <Button variant="outline" className="w-full justify-between" data-testid="letras-adelantadas-toggle">
-                  <span className="font-medium">Letras Adelantadas (Ahorra en intereses)</span>
+                  <span className="font-medium">Letras Adelantadas (Reduce tu plazo)</span>
                   {showLetrasAdelantadas ? (
                     <ChevronUp className="h-4 w-4" />
                   ) : (
@@ -237,7 +237,7 @@ export default function FinancingCalculator({
               <CollapsibleContent className="mt-4">
                 <div className="bg-accent rounded-xl p-4">
                   <p className="text-sm text-muted-foreground mb-4">
-                    Si pagas letras adelantadas junto con tu anticipo, reduces tu plazo y ahorras en intereses:
+                    Si pagas letras adelantadas junto con tu anticipo, reduces tu plazo. <strong>La mensualidad permanece igual.</strong>
                   </p>
                   <div className="space-y-3">
                     {result.letras_adelantadas.map((letra) => (
@@ -256,21 +256,22 @@ export default function FinancingCalculator({
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Pago adicional:</span>
-                            <p className="font-semibold">{formatCurrency(letra.capital_adelantado)}</p>
+                            <span className="text-muted-foreground">Pago adelantado:</span>
+                            <p className="font-semibold">{formatCurrency(letra.pago_adelantado)}</p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Nueva mensualidad:</span>
-                            <p className="font-semibold">{formatCurrency(letra.nueva_mensualidad)}</p>
+                            <span className="text-muted-foreground">Mensualidad:</span>
+                            <p className="font-semibold">{formatCurrency(letra.mensualidad)} <span className="text-xs text-muted-foreground">(sin cambio)</span></p>
                           </div>
                           <div className="col-span-2">
                             <span className="text-muted-foreground">Nuevo plazo:</span>
                             <span className="font-semibold ml-2">{letra.nuevo_plazo} meses</span>
+                            <span className="text-xs text-muted-foreground ml-1">(antes {plazo})</span>
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-border">
                           <p className="text-xs text-muted-foreground">
-                            Total a pagar con anticipo: <strong>{formatCurrency(anticipo + letra.capital_adelantado)}</strong>
+                            Total a pagar de anticipo: <strong>{formatCurrency(anticipo + letra.pago_adelantado)}</strong>
                           </p>
                         </div>
                       </div>
