@@ -7,3 +7,4 @@ motor
 requests
 bcrypt
 passlib
+PyJWT
