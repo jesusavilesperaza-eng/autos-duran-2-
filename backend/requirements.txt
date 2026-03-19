@@ -9,4 +9,4 @@ bcrypt
 passlib
 PyJWT
 resend
-email-validator
+pydantic[email]
