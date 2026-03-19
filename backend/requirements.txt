@@ -9,3 +9,4 @@ bcrypt
 passlib
 PyJWT
 resend
+email-validator
